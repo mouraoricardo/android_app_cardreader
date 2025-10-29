@@ -6,6 +6,7 @@ import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
@@ -167,7 +168,12 @@ class MainActivity : AppCompatActivity() {
         if (NfcAdapter.ACTION_TECH_DISCOVERED == intent.action ||
             NfcAdapter.ACTION_TAG_DISCOVERED == intent.action
         ) {
-            val tag: Tag? = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            }
             tag?.let {
                 handleNfcTag(it)
             }
@@ -195,10 +201,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             result.onFailure { error ->
-                binding.tvNfcMessage.text = "${getString(R.string.card_read_error)}: ${error.message}"
+                binding.tvNfcMessage.text = getString(R.string.card_read_error_with_message, error.message ?: "Unknown error")
                 Toast.makeText(
                     this@MainActivity,
-                    "${getString(R.string.card_read_error)}: ${error.message}",
+                    getString(R.string.card_read_error_with_message, error.message ?: "Unknown error"),
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -253,7 +259,7 @@ class MainActivity : AppCompatActivity() {
             result.onFailure { error ->
                 Toast.makeText(
                     this@MainActivity,
-                    "${getString(R.string.export_error)}: ${error.message}",
+                    getString(R.string.export_error_with_message, error.message ?: "Unknown error"),
                     Toast.LENGTH_LONG
                 ).show()
             }

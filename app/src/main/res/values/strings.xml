@@ -10,6 +10,7 @@
     <string name="reading_card">A ler cartão…</string>
     <string name="card_read_success">Cartão lido com sucesso!</string>
     <string name="card_read_error">Erro ao ler cartão</string>
+    <string name="card_read_error_with_message">Erro ao ler cartão: %s</string>
     <string name="authentication_failed">Falha na autenticação do sector</string>
 
     <!-- Card Information -->
@@ -30,6 +31,7 @@
     <string name="export_to_csv">Exportar para CSV</string>
     <string name="export_success">Dados exportados para: %s</string>
     <string name="export_error">Erro ao exportar dados</string>
+    <string name="export_error_with_message">Erro ao exportar dados: %s</string>
     <string name="no_data_to_export">Não há dados para exportar</string>
 
     <!-- Permissions -->
