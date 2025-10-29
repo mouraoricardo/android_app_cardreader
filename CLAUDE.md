@@ -202,27 +202,70 @@ The `MifareClassicReader` class handles card authentication and data reading:
   - Automatically synchronized between database and UI via Flow
 
 ### CSV Export
-The app supports two export modes:
-1. **Single Card Export**: Full sector/block data
-   - Filename: `card_[UID]_[timestamp].csv`
-   - Contains complete sector and block information in hex and ASCII
+The app exports scanned cards to CSV format compatible with Excel.
 
-2. **Card List Export**: Summary of all scanned cards
-   - Filename: `card_list_[timestamp].csv`
-   - Contains: No., UID, Type, Date & Time for each card
-   - Triggered by "Exportar CSV" button
+**Export Details:**
+- **Filename**: `mifare_cards_[timestamp].csv` (e.g., `mifare_cards_20250129_143022.csv`)
+- **Location**: Downloads folder (accessible via Files app)
+- **Format**: CSV with comma separator, UTF-8 encoding
+- **Columns**:
+  - `UID` - Card unique identifier (e.g., "04:A3:B2:C1:D4:E5:F6")
+  - `Data/Hora` - Scan date and time (format: "dd/MM/yyyy HH:mm:ss")
+- **Triggered by**: "Exportar CSV" button in main screen
 
-All files saved to: `Documents/RFIDCardReader/` directory
-Uses OpenCSV library for CSV writing
+**Platform-Specific Implementation:**
+
+1. **Android 10+ (API 29+)**: Uses MediaStore API
+   - No runtime permissions needed
+   - Files saved to public Downloads folder
+   - Accessible from any file manager
+   - Path: `/storage/emulated/0/Download/mifare_cards_[timestamp].csv`
+
+2. **Android 6-9 (API 23-28)**: Uses legacy external storage
+   - Requires `WRITE_EXTERNAL_STORAGE` runtime permission
+   - Permission requested automatically on first export
+   - User can grant/deny permission
+   - If denied, Snackbar shows with link to app settings
+
+3. **Android 5 and below (API < 23)**: Uses legacy external storage
+   - No runtime permissions (granted at install time)
+   - Manifest permission: `WRITE_EXTERNAL_STORAGE` with `maxSdkVersion="28"`
+
+**Error Handling:**
+- Empty list check before export
+- IOException handling with user-friendly error messages
+- Permission denial handling with settings redirect
+- MediaStore insert failure handling
+
+**CSV Format Example:**
+```csv
+UID,Data/Hora
+04:A3:B2:C1:D4:E5:F6,29/01/2025 14:30:22
+08:B4:C3:D2:E1:F0:A7,29/01/2025 14:31:15
+0C:C5:D4:E3:F2:A1:B8,29/01/2025 14:32:08
+```
+
+**Technical Details:**
+- Uses OpenCSV library for CSV writing
+- UTF-8 encoding for international characters
+- Proper CSV escaping for special characters
+- Excel-compatible format (RFC 4180 compliant)
 
 ### Security Considerations
-- NFC permission required in manifest
-- VIBRATE permission for haptic feedback
+- **NFC permission** required in manifest
+- **VIBRATE permission** for haptic feedback
+- **WRITE_EXTERNAL_STORAGE** (Android 6-9 only, `maxSdkVersion="28"`):
+  - Requested at runtime when exporting CSV
+  - Not needed for Android 10+ (uses MediaStore)
+  - User can deny permission (graceful handling)
+- **READ_EXTERNAL_STORAGE** (`maxSdkVersion="32"`) - declared but not actively used
 - Default Mifare keys are industry-standard (not secret)
 - Raw card data is displayed and exported - ensure proper handling
+- **CSV files saved to public Downloads folder** - accessible by other apps
 - No network transmission of card data
 - Backup rules exclude sensitive shared preferences
 - Debounce mechanism prevents rapid duplicate reads
+- **Scoped Storage compliance** for Android 10+ (API 29+)
 
 ## Key Dependencies
 
@@ -357,9 +400,25 @@ The app features a modern Material Design 3 interface with:
 - Provides tactile confirmation without visual distraction
 
 ### File Locations
-- CSV exports: `/storage/emulated/0/Android/data/com.rlfm.mifarereader/files/Documents/RFIDCardReader/`
-- On Android 10+, files are scoped to app directory (no permission needed)
-- On Android 9-, uses legacy external storage (requires WRITE_EXTERNAL_STORAGE)
+
+**CSV Exports:**
+- **Android 10+** (API 29+): `/storage/emulated/0/Download/mifare_cards_[timestamp].csv`
+  - Uses MediaStore API for Downloads folder
+  - Files are in public storage (accessible by other apps)
+  - No permissions needed
+
+- **Android 6-9** (API 23-28): `/storage/emulated/0/Download/mifare_cards_[timestamp].csv`
+  - Uses legacy Environment.getExternalStoragePublicDirectory()
+  - Requires WRITE_EXTERNAL_STORAGE runtime permission
+  - Files in public Downloads folder
+
+- **Android 5 and below** (API < 23): Same as Android 6-9
+  - No runtime permissions (granted at install)
+
+**Room Database:**
+- `/data/data/com.rlfm.mifarereader/databases/card_database`
+- Private app storage (cleared on uninstall)
+- Automatically managed by Room
 
 ## Key Features
 

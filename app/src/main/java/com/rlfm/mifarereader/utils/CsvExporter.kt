@@ -1,21 +1,28 @@
 package com.rlfm.mifarereader.utils
 
+import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import com.opencsv.CSVWriter
 import com.rlfm.mifarereader.CardEntry
 import java.io.File
 import java.io.FileWriter
+import java.io.OutputStream
+import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * Utility class for exporting card data to CSV
+ * Exports to Downloads folder with proper Android 10+ support using MediaStore API
  */
 class CsvExporter(private val context: Context) {
 
     companion object {
         private const val CSV_DIRECTORY = "RFIDCardReader"
+        private const val MIME_TYPE_CSV = "text/csv"
     }
 
     /**
@@ -111,55 +118,105 @@ class CsvExporter(private val context: Context) {
     }
 
     /**
-     * Export list of card entries to CSV file
+     * Export list of card entries to CSV file in Downloads folder
+     * Format: UID, Data/Hora
+     * For Android 10+ (API 29+): Uses MediaStore API
+     * For Android 9- (API < 29): Uses legacy external storage
      */
     fun exportCardList(cardList: List<CardEntry>): Result<String> {
         try {
+            if (cardList.isEmpty()) {
+                return Result.failure(IllegalArgumentException("Lista de cartões vazia"))
+            }
+
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "card_list_$timestamp.csv"
+            val fileName = "mifare_cards_$timestamp.csv"
 
-            // Try to use external storage first (for API < 29)
-            val externalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            val directory = if (externalDir != null) {
-                File(externalDir, CSV_DIRECTORY)
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+ (API 29+): Use MediaStore
+                exportUsingMediaStore(fileName, cardList)
             } else {
-                // Fallback to internal storage
-                File(context.filesDir, CSV_DIRECTORY)
+                // Android 9- (API < 29): Use legacy method
+                exportUsingLegacyStorage(fileName, cardList)
             }
 
-            if (!directory.exists()) {
-                directory.mkdirs()
+        } catch (e: Exception) {
+            return Result.failure(Exception("Erro ao exportar CSV: ${e.message}", e))
+        }
+    }
+
+    /**
+     * Export using MediaStore API (Android 10+)
+     */
+    private fun exportUsingMediaStore(fileName: String, cardList: List<CardEntry>): Result<String> {
+        try {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, MIME_TYPE_CSV)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
 
-            val file = File(directory, fileName)
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                ?: return Result.failure(Exception("Falha ao criar ficheiro no MediaStore"))
 
-            CSVWriter(FileWriter(file)).use { writer ->
-                // Write header
-                writer.writeNext(arrayOf("RFID Card Reader - Card List Export"))
-                writer.writeNext(arrayOf("Total Cards", cardList.size.toString()))
-                writer.writeNext(arrayOf("Exported at", getCurrentTimestamp()))
-                writer.writeNext(arrayOf(""))
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                writeCardListToCsv(outputStream, cardList)
+            } ?: return Result.failure(Exception("Falha ao abrir stream de saída"))
 
-                // Write card data header
-                writer.writeNext(arrayOf("No.", "UID", "Type", "Date & Time"))
+            // Get the actual file path for display purposes
+            val downloadsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+            val displayPath = "$downloadsPath/$fileName"
 
-                // Write all cards
-                cardList.forEachIndexed { index, card ->
-                    writer.writeNext(
-                        arrayOf(
-                            (index + 1).toString(),
-                            card.uid,
-                            card.type,
-                            card.getFormattedDate()
-                        )
-                    )
-                }
+            return Result.success(displayPath)
+
+        } catch (e: Exception) {
+            return Result.failure(Exception("Erro ao exportar com MediaStore: ${e.message}", e))
+        }
+    }
+
+    /**
+     * Export using legacy external storage (Android 9-)
+     */
+    private fun exportUsingLegacyStorage(fileName: String, cardList: List<CardEntry>): Result<String> {
+        try {
+            @Suppress("DEPRECATION")
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+
+            if (!downloadsDir.exists()) {
+                downloadsDir.mkdirs()
+            }
+
+            val file = File(downloadsDir, fileName)
+            file.outputStream().use { outputStream ->
+                writeCardListToCsv(outputStream, cardList)
             }
 
             return Result.success(file.absolutePath)
 
         } catch (e: Exception) {
-            return Result.failure(e)
+            return Result.failure(Exception("Erro ao exportar ficheiro: ${e.message}", e))
+        }
+    }
+
+    /**
+     * Write card list data to CSV output stream
+     * CSV Format: UID, Data/Hora (compatible with Excel)
+     */
+    private fun writeCardListToCsv(outputStream: OutputStream, cardList: List<CardEntry>) {
+        CSVWriter(OutputStreamWriter(outputStream, Charsets.UTF_8)).use { writer ->
+            // Write header (column names)
+            writer.writeNext(arrayOf("UID", "Data/Hora"))
+
+            // Write all cards
+            cardList.forEach { card ->
+                writer.writeNext(
+                    arrayOf(
+                        card.uid,
+                        card.getFormattedDate()
+                    )
+                )
+            }
         }
     }
 }

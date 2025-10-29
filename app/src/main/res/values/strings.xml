@@ -36,6 +36,7 @@
 
     <!-- Permissions -->
     <string name="storage_permission_required">Permissão de armazenamento necessária para exportar dados</string>
+    <string name="storage_permission_denied">Permissão de armazenamento negada. Por favor, ative-a nas configurações da aplicação.</string>
 
     <!-- Settings -->
     <string name="open_nfc_settings">Abrir Configurações NFC</string>

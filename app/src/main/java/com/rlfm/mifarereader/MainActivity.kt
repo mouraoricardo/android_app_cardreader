@@ -1,11 +1,16 @@
 package com.rlfm.mifarereader
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
@@ -27,6 +32,19 @@ class MainActivity : AppCompatActivity() {
 
     private val cardAdapter = CardAdapter()
     private var currentCardList = listOf<CardEntry>()
+
+    // Permission launcher for storage (Android 6-9 only)
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, proceed with export
+            performCsvExport()
+        } else {
+            // Permission denied
+            showPermissionDeniedMessage()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -264,6 +282,8 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Export all cards to CSV
+     * Checks storage permissions for Android 6-9 (API 23-28)
+     * Android 10+ doesn't need permissions for Downloads via MediaStore
      */
     private fun exportToCSV() {
         if (currentCardList.isEmpty()) {
@@ -276,6 +296,62 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // Check if we need storage permission (Android 6-9 only)
+        if (needsStoragePermission() && !hasStoragePermission()) {
+            requestStoragePermission()
+            return
+        }
+
+        // Proceed with export
+        performCsvExport()
+    }
+
+    /**
+     * Check if storage permission is needed
+     * Only needed for Android 6-9 (API 23-28)
+     */
+    private fun needsStoragePermission(): Boolean {
+        return Build.VERSION.SDK_INT in Build.VERSION_CODES.M until Build.VERSION_CODES.Q
+    }
+
+    /**
+     * Check if storage permission is granted
+     */
+    private fun hasStoragePermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * Request storage permission
+     */
+    private fun requestStoragePermission() {
+        storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    }
+
+    /**
+     * Show message when permission is denied
+     */
+    private fun showPermissionDeniedMessage() {
+        Snackbar.make(
+            binding.root,
+            getString(R.string.storage_permission_denied),
+            Snackbar.LENGTH_LONG
+        ).setAction(getString(R.string.open_nfc_settings)) {
+            // Open app settings
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            intent.data = android.net.Uri.fromParts("package", packageName, null)
+            startActivity(intent)
+        }.setAnchorView(binding.buttonContainer)
+            .show()
+    }
+
+    /**
+     * Perform the actual CSV export
+     */
+    private fun performCsvExport() {
         lifecycleScope.launch {
             val cardList = cardRepository.getAllCardsList()
             val result = csvExporter.exportCardList(cardList)
