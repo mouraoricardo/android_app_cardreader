@@ -1,24 +1,16 @@
 package com.rlfm.mifarereader
 
-import android.app.PendingIntent
 import android.content.Intent
-import android.content.IntentFilter
-import android.nfc.NfcAdapter
-import android.nfc.Tag
-import android.nfc.tech.MifareClassic
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.rlfm.mifarereader.databinding.ActivityMainBinding
 import com.rlfm.mifarereader.utils.CsvExporter
-import com.rlfm.mifarereader.utils.MifareCardData
-import com.rlfm.mifarereader.utils.MifareClassicReader
 import kotlinx.coroutines.launch
 
 /**
@@ -27,12 +19,7 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private var nfcAdapter: NfcAdapter? = null
-    private lateinit var pendingIntent: PendingIntent
-    private lateinit var intentFilters: Array<IntentFilter>
-    private lateinit var techLists: Array<Array<String>>
-
-    private val mifareReader = MifareClassicReader()
+    private lateinit var nfcReader: NfcReader
     private lateinit var csvExporter: CsvExporter
 
     private val cardAdapter = CardAdapter()
@@ -62,38 +49,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Setup NFC adapter and intent filters
+     * Setup NFC reader
      */
     private fun setupNfc() {
-        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        nfcReader = NfcReader(this)
 
-        if (nfcAdapter == null) {
+        // Set callbacks
+        nfcReader.setOnCardDetectedListener { uid, type, timestamp ->
+            onCardDetected(uid, type, timestamp)
+        }
+
+        nfcReader.setOnNfcNotSupportedListener {
             showNfcNotSupported()
+        }
+
+        nfcReader.setOnNfcDisabledListener {
+            updateNfcStatus()
+            showEnableNfcDialog()
+        }
+
+        // Initialize NFC
+        if (!nfcReader.initialize()) {
             return
         }
-
-        // Create pending intent for NFC
-        val intent = Intent(this, javaClass).apply {
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_MUTABLE
-        )
-
-        // Setup intent filters for NFC discovery
-        intentFilters = arrayOf(
-            IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED),
-            IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED)
-        )
-
-        // Setup tech lists for Mifare Classic
-        techLists = arrayOf(
-            arrayOf(MifareClassic::class.java.name),
-            arrayOf(android.nfc.tech.NfcA::class.java.name)
-        )
     }
 
     /**
@@ -109,6 +87,50 @@ class MainActivity : AppCompatActivity() {
         }
 
         updateNfcStatus()
+    }
+
+    /**
+     * Handle card detection from NFC reader
+     */
+    private fun onCardDetected(uid: String, type: String, timestamp: Long) {
+        // Add card to list
+        val cardEntry = CardEntry(
+            uid = uid,
+            type = type,
+            timestamp = timestamp
+        )
+
+        cardList.add(0, cardEntry)
+        updateUI()
+
+        // Update status
+        binding.tvNfcStatus.text = getString(R.string.card_read_success)
+
+        // Show snackbar with card info
+        showCardDetectedSnackbar(uid, type)
+
+        // Scroll to top
+        binding.recyclerViewCards.smoothScrollToPosition(0)
+
+        // Reset status after 3 seconds
+        binding.tvNfcStatus.postDelayed({
+            binding.tvNfcStatus.text = getString(R.string.nfc_ready)
+        }, 3000)
+    }
+
+    /**
+     * Show snackbar when card is detected
+     */
+    private fun showCardDetectedSnackbar(uid: String, type: String) {
+        Snackbar.make(
+            binding.root,
+            getString(R.string.card_detected_snackbar, uid),
+            Snackbar.LENGTH_LONG
+        ).setAction(getString(R.string.view)) {
+            // Scroll to top to show the card
+            binding.recyclerViewCards.smoothScrollToPosition(0)
+        }.setAnchorView(binding.buttonContainer)
+            .show()
     }
 
     /**
@@ -137,14 +159,13 @@ class MainActivity : AppCompatActivity() {
      */
     private fun updateNfcStatus() {
         when {
-            nfcAdapter == null -> {
+            !nfcReader.isNfcAvailable() -> {
                 binding.tvNfcPrompt.text = getString(R.string.nfc_not_supported)
                 binding.tvNfcStatus.text = ""
             }
-            !nfcAdapter!!.isEnabled -> {
+            !nfcReader.isNfcEnabled() -> {
                 binding.tvNfcPrompt.text = getString(R.string.nfc_disabled)
                 binding.tvNfcStatus.text = getString(R.string.open_nfc_settings)
-                showEnableNfcDialog()
             }
             else -> {
                 binding.tvNfcPrompt.text = getString(R.string.approach_mifare_card)
@@ -201,98 +222,32 @@ class MainActivity : AppCompatActivity() {
     private fun clearList() {
         cardList.clear()
         updateUI()
-        Toast.makeText(this, getString(R.string.clear_list), Toast.LENGTH_SHORT).show()
+
+        // Clear NFC reader debounce state
+        nfcReader.clearDebounceState()
+
+        Snackbar.make(
+            binding.root,
+            getString(R.string.list_cleared),
+            Snackbar.LENGTH_SHORT
+        ).setAnchorView(binding.buttonContainer)
+            .show()
     }
 
     override fun onResume() {
         super.onResume()
         updateNfcStatus()
-
-        // Enable foreground dispatch for NFC
-        nfcAdapter?.enableForegroundDispatch(
-            this,
-            pendingIntent,
-            intentFilters,
-            techLists
-        )
+        nfcReader.enableForegroundDispatch()
     }
 
     override fun onPause() {
         super.onPause()
-
-        // Disable foreground dispatch
-        nfcAdapter?.disableForegroundDispatch(this)
+        nfcReader.disableForegroundDispatch()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-
-        if (NfcAdapter.ACTION_TECH_DISCOVERED == intent.action ||
-            NfcAdapter.ACTION_TAG_DISCOVERED == intent.action
-        ) {
-            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-            }
-            tag?.let {
-                handleNfcTag(it)
-            }
-        }
-    }
-
-    /**
-     * Handle NFC tag detection
-     */
-    private fun handleNfcTag(tag: Tag) {
-        binding.tvNfcStatus.text = getString(R.string.reading_card)
-
-        lifecycleScope.launch {
-            val result = mifareReader.readCard(tag)
-
-            result.onSuccess { cardData ->
-                addCardToList(cardData)
-                binding.tvNfcStatus.text = getString(R.string.card_read_success)
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.card_read_success),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            result.onFailure { error ->
-                binding.tvNfcStatus.text = getString(R.string.card_read_error_with_message, error.message ?: "Unknown error")
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.card_read_error_with_message, error.message ?: "Unknown error"),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-
-            // Reset status after 3 seconds
-            binding.tvNfcStatus.postDelayed({
-                binding.tvNfcStatus.text = getString(R.string.nfc_ready)
-            }, 3000)
-        }
-    }
-
-    /**
-     * Add card to the list
-     */
-    private fun addCardToList(cardData: MifareCardData) {
-        val cardEntry = CardEntry(
-            uid = cardData.uid,
-            type = cardData.type,
-            timestamp = System.currentTimeMillis()
-        )
-
-        // Add to beginning of list
-        cardList.add(0, cardEntry)
-        updateUI()
-
-        // Scroll to top
-        binding.recyclerViewCards.smoothScrollToPosition(0)
+        nfcReader.handleIntent(intent)
     }
 
     /**
@@ -300,11 +255,12 @@ class MainActivity : AppCompatActivity() {
      */
     private fun exportToCSV() {
         if (cardList.isEmpty()) {
-            Toast.makeText(
-                this,
+            Snackbar.make(
+                binding.root,
                 getString(R.string.no_data_to_export),
-                Toast.LENGTH_SHORT
-            ).show()
+                Snackbar.LENGTH_SHORT
+            ).setAnchorView(binding.buttonContainer)
+                .show()
             return
         }
 
@@ -312,27 +268,35 @@ class MainActivity : AppCompatActivity() {
             val result = csvExporter.exportCardList(cardList)
 
             result.onSuccess { filePath ->
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.export_success, filePath),
-                    Toast.LENGTH_LONG
-                ).show()
-
-                // Show dialog with file location
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle(getString(R.string.export_to_csv))
-                    .setMessage(getString(R.string.export_success, filePath))
-                    .setPositiveButton("OK", null)
+                Snackbar.make(
+                    binding.root,
+                    getString(R.string.export_success_short),
+                    Snackbar.LENGTH_LONG
+                ).setAction(getString(R.string.details)) {
+                    showExportDetailsDialog(filePath)
+                }.setAnchorView(binding.buttonContainer)
                     .show()
             }
 
             result.onFailure { error ->
-                Toast.makeText(
-                    this@MainActivity,
+                Snackbar.make(
+                    binding.root,
                     getString(R.string.export_error_with_message, error.message ?: "Unknown error"),
-                    Toast.LENGTH_LONG
-                ).show()
+                    Snackbar.LENGTH_LONG
+                ).setAnchorView(binding.buttonContainer)
+                    .show()
             }
         }
+    }
+
+    /**
+     * Show export details dialog
+     */
+    private fun showExportDetailsDialog(filePath: String) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.export_to_csv))
+            .setMessage(getString(R.string.export_success, filePath))
+            .setPositiveButton("OK", null)
+            .show()
     }
 }

@@ -69,7 +69,8 @@ The app reads Mifare Classic cards via NFC, maintains a list of scanned cards wi
 app/
 ├── src/main/
 │   ├── java/com/rlfm/mifarereader/
-│   │   ├── MainActivity.kt              # Main activity with NFC & list management
+│   │   ├── MainActivity.kt              # Main activity with UI & list management
+│   │   ├── NfcReader.kt                 # NFC communication manager (NEW)
 │   │   ├── CardEntry.kt                 # Data class for card list items
 │   │   ├── CardAdapter.kt               # RecyclerView adapter with DiffUtil
 │   │   └── utils/
@@ -100,11 +101,34 @@ app/
 
 ## Architecture
 
-### NFC Integration
-- Uses Android's NFC API for Mifare Classic card reading
-- Implements foreground dispatch system for NFC tag discovery
-- Supports `ACTION_TECH_DISCOVERED` and `ACTION_TAG_DISCOVERED` intents
-- Tech list filters configured for NfcA and MifareClassic technologies
+### NFC Integration - NfcReader Class
+The `NfcReader` class is a dedicated NFC communication manager that handles all NFC operations:
+
+**Core Features:**
+- **Foreground Dispatch Management**: Automatically enables/disables foreground dispatch
+- **UID Extraction**: Extracts and converts card UID to hexadecimal format
+- **Card Type Detection**: Identifies Mifare Classic (1K/2K/4K), Plus, Pro, Ultralight, and generic NFC tags
+- **Callback System**: Event-driven architecture with listeners for card detection, NFC disabled, etc.
+
+**Debounce Logic (2 seconds):**
+- Prevents duplicate reads of the same card within 2 seconds
+- Tracks last read UID and timestamp
+- Can be cleared manually (e.g., when clearing the list)
+
+**Haptic Feedback:**
+- Vibrates device for 200ms on successful card read
+- Uses modern VibrationEffect API (Android 8.0+) with fallback for older versions
+- Supports both Vibrator and VibratorManager (Android 12+)
+
+**Tech List Filters:**
+- Mifare Classic (priority)
+- NFC-A tags
+- NDEF tags
+
+**Intent Handling:**
+- `ACTION_TECH_DISCOVERED`
+- `ACTION_TAG_DISCOVERED`
+- `ACTION_NDEF_DISCOVERED`
 
 ### Mifare Classic Reading
 The `MifareClassicReader` class handles card authentication and data reading:
@@ -135,10 +159,12 @@ Uses OpenCSV library for CSV writing
 
 ### Security Considerations
 - NFC permission required in manifest
+- VIBRATE permission for haptic feedback
 - Default Mifare keys are industry-standard (not secret)
 - Raw card data is displayed and exported - ensure proper handling
 - No network transmission of card data
 - Backup rules exclude sensitive shared preferences
+- Debounce mechanism prevents rapid duplicate reads
 
 ## Key Dependencies
 
@@ -182,6 +208,30 @@ To add custom keys, edit `MifareClassicReader.kt:DEFAULT_KEYS`
 - MainActivity uses `launchMode="singleTop"` to handle NFC intents
 - Foreground dispatch ensures app receives NFC events when in foreground
 - Connection is opened/closed properly to avoid resource leaks
+
+### Debounce Implementation
+The 2-second debounce prevents duplicate reads:
+```kotlin
+private var lastReadUid: String? = null
+private var lastReadTimestamp: Long = 0
+
+fun shouldDebounce(uid: String, currentTime: Long): Boolean {
+    if (lastReadUid != uid) return false
+    val timeSinceLastRead = currentTime - lastReadTimestamp
+    return timeSinceLastRead < 2000L // 2 seconds
+}
+```
+
+**Behavior:**
+- Same card re-read within 2 seconds: **Ignored**
+- Different card: **Accepted immediately**
+- Same card after 2 seconds: **Accepted**
+- Cleared when list is cleared via `clearDebounceState()`
+
+**Benefits:**
+- Prevents accidental duplicate entries
+- Allows intentional re-reading after short wait
+- Tracks per-card, not globally
 
 ### UI/UX - Modern Interface
 The app features a modern Material Design 3 interface with:
@@ -230,6 +280,19 @@ The app features a modern Material Design 3 interface with:
 - Proper plurals and formatting
 - Confirmation dialogs with clear messaging
 
+**Visual Feedback:**
+- Snackbar notifications for all actions:
+  - Card detected with UID
+  - List cleared
+  - CSV exported
+  - Errors
+- Snackbars anchored to bottom button container
+- Action buttons in snackbars (e.g., "Ver" to scroll to card, "Detalhes" for export path)
+
+**Haptic Feedback:**
+- Short vibration (200ms) on successful card read
+- Provides tactile confirmation without visual distraction
+
 ### File Locations
 - CSV exports: `/storage/emulated/0/Android/data/com.rlfm.mifarereader/files/Documents/RFIDCardReader/`
 - On Android 10+, files are scoped to app directory (no permission needed)
@@ -253,11 +316,34 @@ The app features a modern Material Design 3 interface with:
 6. Clear list to start fresh session
 
 ### Data Flow
+
+**Quick Read Flow (UID Only):**
+```
+NFC Tag → NfcReader → Extract UID → Debounce Check → Vibrate → CardEntry → RecyclerView
+                                                                    ↓
+                                                              Snackbar feedback
+```
+
+**Detailed Read Flow (Full Card Data):**
 ```
 NFC Tag → MifareClassicReader → MifareCardData → CardEntry → RecyclerView
                                                               ↓
                                                     CsvExporter (list export)
 ```
+
+**NfcReader Responsibilities:**
+- Intent handling and tag extraction
+- UID to hex conversion
+- Card type identification
+- Debounce logic
+- Vibration feedback
+- Callback notifications
+
+**MainActivity Responsibilities:**
+- UI updates
+- List management
+- Snackbar notifications
+- CSV export coordination
 
 ## License
 

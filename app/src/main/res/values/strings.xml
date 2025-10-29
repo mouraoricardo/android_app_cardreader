@@ -59,4 +59,11 @@
     <string name="clear_list_message">Tem a certeza que deseja limpar a lista de cartões lidos? Esta ação não pode ser desfeita.</string>
     <string name="clear">Limpar</string>
     <string name="cancel">Cancelar</string>
+
+    <!-- Snackbar Messages -->
+    <string name="card_detected_snackbar">Cartão detectado: %s</string>
+    <string name="list_cleared">Lista limpa</string>
+    <string name="export_success_short">CSV exportado com sucesso</string>
+    <string name="view">Ver</string>
+    <string name="details">Detalhes</string>
 </resources>

@@ -5,6 +5,9 @@
     <!-- NFC Permissions -->
     <uses-permission android:name="android.permission.NFC" />
 
+    <!-- Vibration for haptic feedback -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Storage permissions for CSV export -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
