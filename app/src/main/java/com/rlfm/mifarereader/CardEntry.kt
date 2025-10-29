@@ -1,15 +1,28 @@
 package com.rlfm.mifarereader
 
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Data class representing a card entry in the list
+ * Room Entity representing a card entry in the database
  */
+@Entity(tableName = "cards")
 data class CardEntry(
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "id")
+    val id: Long = 0,
+
+    @ColumnInfo(name = "uid")
     val uid: String,
+
+    @ColumnInfo(name = "type")
     val type: String,
+
+    @ColumnInfo(name = "timestamp")
     val timestamp: Long = System.currentTimeMillis()
 ) {
     fun getFormattedTime(): String {

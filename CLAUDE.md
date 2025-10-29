@@ -70,9 +70,13 @@ app/
 ├── src/main/
 │   ├── java/com/rlfm/mifarereader/
 │   │   ├── MainActivity.kt              # Main activity with UI & list management
-│   │   ├── NfcReader.kt                 # NFC communication manager (NEW)
-│   │   ├── CardEntry.kt                 # Data class for card list items
+│   │   ├── NfcReader.kt                 # NFC communication manager
+│   │   ├── CardEntry.kt                 # Room Entity for card data
 │   │   ├── CardAdapter.kt               # RecyclerView adapter with DiffUtil
+│   │   ├── data/
+│   │   │   ├── CardDao.kt               # Room DAO for database operations
+│   │   │   ├── CardDatabase.kt          # Room Database singleton
+│   │   │   └── CardRepository.kt        # Repository pattern for data access
 │   │   └── utils/
 │   │       ├── MifareClassicReader.kt   # Core NFC reading logic
 │   │       ├── NfcUtils.kt              # NFC utility functions
@@ -130,6 +134,58 @@ The `NfcReader` class is a dedicated NFC communication manager that handles all 
 - `ACTION_TAG_DISCOVERED`
 - `ACTION_NDEF_DISCOVERED`
 
+### Data Persistence - Room Database
+The app uses Room Database for persistent storage of card data across app sessions:
+
+**Architecture Components:**
+
+1. **CardEntry (Entity)**
+   - Room `@Entity` with table name "cards"
+   - Fields: `id` (auto-generated primary key), `uid`, `type`, `timestamp`
+   - Includes formatting methods: `getFormattedTime()`, `getFormattedDate()`
+
+2. **CardDao (Data Access Object)**
+   - Interface defining database operations
+   - `insertCard()`: Add new card (suspend function)
+   - `getAllCards()`: Returns `Flow<List<CardEntry>>` for reactive updates
+   - `getAllCardsList()`: One-time query for CSV export
+   - `deleteAllCards()`: Clear entire database
+   - `deleteCard()`: Remove specific card
+   - `getCardCount()`: Returns `Flow<Int>` for counter
+   - All queries ordered by timestamp DESC (newest first)
+
+3. **CardDatabase**
+   - Room Database singleton
+   - Version 1 with `fallbackToDestructiveMigration()`
+   - Database name: "card_database"
+   - Thread-safe instance using `synchronized` block
+
+4. **CardRepository**
+   - Repository pattern for clean data access
+   - Exposes `allCards` Flow for reactive UI updates
+   - Exposes `cardCount` Flow for counter updates
+   - Provides convenience method: `insertCard(uid, type)` with auto-generated ID
+   - All database operations are suspend functions
+
+**Data Persistence Flow:**
+```
+Card Scanned → CardRepository.insertCard() → CardDao → Room Database → Flow Updates → UI Auto-Updates
+                                                                           ↓
+                                                                     RecyclerView refreshes
+```
+
+**Key Benefits:**
+- **Automatic Persistence**: All cards saved to SQLite database
+- **Survives App Restart**: Data persists across sessions
+- **Reactive Updates**: UI automatically refreshes when data changes via Flow
+- **Thread-Safe**: All database operations on background threads via coroutines
+- **Type-Safe**: Room compile-time verification of SQL queries
+
+**Database Location:**
+- `/data/data/com.rlfm.mifarereader/databases/card_database`
+- Automatically managed by Room
+- Scoped to app (cleared on uninstall)
+
 ### Mifare Classic Reading
 The `MifareClassicReader` class handles card authentication and data reading:
 - Attempts authentication with multiple default keys (0xFFFFFFFFFFFF, 0xA0A1A2A3A4A5, etc.)
@@ -141,7 +197,9 @@ The `MifareClassicReader` class handles card authentication and data reading:
 - `MifareCardData`: Complete card information (from NFC read)
 - `SectorData`: Sector-level data with authentication status
 - `BlockData`: Individual block data with hex representation
-- `CardEntry`: List item with UID, type, and timestamp for RecyclerView
+- `CardEntry`: Room Entity (database table) with auto-generated ID, UID, type, and timestamp
+  - Used for persistent storage and RecyclerView display
+  - Automatically synchronized between database and UI via Flow
 
 ### CSV Export
 The app supports two export modes:
@@ -179,8 +237,13 @@ androidx.constraintlayout:constraintlayout:2.1.4
 androidx.lifecycle:lifecycle-runtime-ktx:2.7.0
 androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0
 
-// Coroutines (for async NFC operations)
+// Coroutines (for async operations)
 kotlinx-coroutines-android:1.7.3
+
+// Room Database (for persistent storage)
+androidx.room:room-runtime:2.6.1
+androidx.room:room-ktx:2.6.1
+ksp: androidx.room:room-compiler:2.6.1
 
 // CSV handling
 com.opencsv:opencsv:5.9
@@ -301,49 +364,92 @@ The app features a modern Material Design 3 interface with:
 ## Key Features
 
 ### Card List Management
-- **Persistent Session List**: Cards remain in list until cleared
+- **Persistent Storage**: Cards saved to Room Database, survive app restarts
+- **Reactive UI**: Automatic UI updates via Flow when data changes
 - **No Duplicates Filtering**: Each scan adds a new entry (allows tracking multiple reads of same card)
-- **Chronological Order**: Newest cards appear at top
+- **Chronological Order**: Newest cards appear at top (sorted by timestamp DESC)
 - **Counter**: Real-time count of scanned cards
-- **Clear All**: Button to clear entire list with confirmation dialog
+- **Clear All**: Button to clear entire database with confirmation dialog
+- **Unique IDs**: Auto-generated primary keys for each card entry
 
 ### User Workflow
-1. App opens → Shows NFC prompt and empty list
-2. User taps card → Card reads and appears at top of list
-3. Counter updates automatically
+1. App opens → Loads previously scanned cards from database (if any)
+2. User taps card → Card saved to database and appears at top of list
+3. Counter updates automatically via Flow
 4. Repeat for multiple cards
-5. Export entire list to CSV when ready
-6. Clear list to start fresh session
+5. Close app → All data persists in database
+6. Reopen app → Previously scanned cards are restored
+7. Export entire list to CSV when ready
+8. Clear list to delete all cards from database
 
 ### Data Flow
 
-**Quick Read Flow (UID Only):**
+**Card Reading with Persistence:**
 ```
-NFC Tag → NfcReader → Extract UID → Debounce Check → Vibrate → CardEntry → RecyclerView
+NFC Tag → NfcReader → Extract UID → Debounce Check → Vibrate → Callback
                                                                     ↓
-                                                              Snackbar feedback
+MainActivity.onCardDetected() → CardRepository.insertCard() → Room Database
+                                                                    ↓
+                                              Flow<List<CardEntry>> emits update
+                                                                    ↓
+                                              MainActivity.observeCards() collects
+                                                                    ↓
+                                              RecyclerView auto-updates + Snackbar
 ```
 
-**Detailed Read Flow (Full Card Data):**
+**App Startup Flow:**
 ```
-NFC Tag → MifareClassicReader → MifareCardData → CardEntry → RecyclerView
+App Launch → MainActivity.onCreate() → CardRepository initialization
+                                             ↓
+                                    observeCards() starts collecting
+                                             ↓
+                          Flow emits existing cards from database
+                                             ↓
+                                    UI displays saved cards
+```
+
+**Export Flow:**
+```
+User clicks Export → CardRepository.getAllCardsList() → One-time query
                                                               ↓
-                                                    CsvExporter (list export)
+                                                      CsvExporter writes file
+                                                              ↓
+                                                      Snackbar with file path
 ```
 
-**NfcReader Responsibilities:**
+**Clear List Flow:**
+```
+User clicks Clear (with confirmation) → CardRepository.deleteAllCards()
+                                                    ↓
+                                          Room deletes all rows
+                                                    ↓
+                                   Flow emits empty list automatically
+                                                    ↓
+                                          UI shows empty state
+```
+
+**Component Responsibilities:**
+
+**NfcReader:**
 - Intent handling and tag extraction
 - UID to hex conversion
 - Card type identification
-- Debounce logic
+- Debounce logic (2 seconds)
 - Vibration feedback
 - Callback notifications
 
-**MainActivity Responsibilities:**
-- UI updates
-- List management
+**CardRepository:**
+- Database access abstraction
+- Exposes reactive Flows
+- Manages CRUD operations
+- Thread-safe database calls
+
+**MainActivity:**
+- UI updates via Flow collection
+- Lifecycle-aware coroutines
+- User interaction handling
 - Snackbar notifications
-- CSV export coordination
+- Coordinates repository and UI
 
 ## License
 

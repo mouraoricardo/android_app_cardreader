@@ -9,8 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
+import com.rlfm.mifarereader.data.CardRepository
 import com.rlfm.mifarereader.databinding.ActivityMainBinding
 import com.rlfm.mifarereader.utils.CsvExporter
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -21,9 +23,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var nfcReader: NfcReader
     private lateinit var csvExporter: CsvExporter
+    private lateinit var cardRepository: CardRepository
 
     private val cardAdapter = CardAdapter()
-    private val cardList = mutableListOf<CardEntry>()
+    private var currentCardList = listOf<CardEntry>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,11 +34,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         csvExporter = CsvExporter(this)
+        cardRepository = CardRepository(this)
 
         setupNfc()
         setupRecyclerView()
         setupUI()
-        updateUI()
+        observeCards()
     }
 
     /**
@@ -90,18 +94,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Observe cards from repository and update UI
+     */
+    private fun observeCards() {
+        lifecycleScope.launch {
+            cardRepository.allCards.collectLatest { cards ->
+                currentCardList = cards
+                updateUI()
+            }
+        }
+    }
+
+    /**
      * Handle card detection from NFC reader
      */
     private fun onCardDetected(uid: String, type: String, timestamp: Long) {
-        // Add card to list
-        val cardEntry = CardEntry(
-            uid = uid,
-            type = type,
-            timestamp = timestamp
-        )
-
-        cardList.add(0, cardEntry)
-        updateUI()
+        // Insert card into database
+        lifecycleScope.launch {
+            cardRepository.insertCard(uid, type)
+        }
 
         // Update status
         binding.tvNfcStatus.text = getString(R.string.card_read_success)
@@ -137,10 +148,10 @@ class MainActivity : AppCompatActivity() {
      * Update UI based on current state
      */
     private fun updateUI() {
-        val hasCards = cardList.isNotEmpty()
+        val hasCards = currentCardList.isNotEmpty()
 
         // Update counter
-        binding.tvCounter.text = getString(R.string.cards_read_count, cardList.size)
+        binding.tvCounter.text = getString(R.string.cards_read_count, currentCardList.size)
 
         // Update empty state
         binding.emptyState.visibility = if (hasCards) View.GONE else View.VISIBLE
@@ -151,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnClearList.isEnabled = hasCards
 
         // Update adapter
-        cardAdapter.submitList(cardList.toList())
+        cardAdapter.submitList(currentCardList)
     }
 
     /**
@@ -220,8 +231,9 @@ class MainActivity : AppCompatActivity() {
      * Clear the card list
      */
     private fun clearList() {
-        cardList.clear()
-        updateUI()
+        lifecycleScope.launch {
+            cardRepository.deleteAllCards()
+        }
 
         // Clear NFC reader debounce state
         nfcReader.clearDebounceState()
@@ -254,7 +266,7 @@ class MainActivity : AppCompatActivity() {
      * Export all cards to CSV
      */
     private fun exportToCSV() {
-        if (cardList.isEmpty()) {
+        if (currentCardList.isEmpty()) {
             Snackbar.make(
                 binding.root,
                 getString(R.string.no_data_to_export),
@@ -265,6 +277,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
+            val cardList = cardRepository.getAllCardsList()
             val result = csvExporter.exportCardList(cardList)
 
             result.onSuccess { filePath ->
