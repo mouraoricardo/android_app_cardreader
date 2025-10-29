@@ -3,27 +3,39 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Primary Colors -->
-    <color name="primary">#FF1976D2</color>
-    <color name="primary_dark">#FF1565C0</color>
-    <color name="primary_light">#FF64B5F6</color>
+    <!-- Primary Colors - Modern Blue -->
+    <color name="primary">#FF2196F3</color>
+    <color name="primary_dark">#FF1976D2</color>
+    <color name="primary_light">#FFBBDEFB</color>
+    <color name="primary_variant">#FF1565C0</color>
 
-    <!-- Secondary Colors -->
-    <color name="secondary">#FF388E3C</color>
-    <color name="secondary_dark">#FF2E7D32</color>
-    <color name="secondary_light">#FF66BB6A</color>
+    <!-- Secondary Colors - Teal Accent -->
+    <color name="secondary">#FF00BCD4</color>
+    <color name="secondary_dark">#FF0097A7</color>
+    <color name="secondary_light">#FFB2EBF2</color>
+    <color name="secondary_variant">#FF00838F</color>
 
     <!-- Status Colors -->
     <color name="success">#FF4CAF50</color>
     <color name="error">#FFF44336</color>
     <color name="warning">#FFFF9800</color>
+    <color name="info">#FF2196F3</color>
 
-    <!-- UI Colors -->
-    <color name="background">#FFF5F5F5</color>
+    <!-- Background Colors -->
+    <color name="background">#FFF5F7FA</color>
     <color name="surface">#FFFFFFFF</color>
+    <color name="surface_variant">#FFF8F9FA</color>
+
+    <!-- Divider & Border -->
     <color name="divider">#FFE0E0E0</color>
+    <color name="outline">#FFBDBDBD</color>
 
     <!-- Text Colors -->
     <color name="text_primary">#DE000000</color>
     <color name="text_secondary">#99000000</color>
+    <color name="text_disabled">#61000000</color>
+    <color name="text_on_primary">#FFFFFFFF</color>
+
+    <!-- Card Shadow -->
+    <color name="shadow">#1A000000</color>
 </resources>

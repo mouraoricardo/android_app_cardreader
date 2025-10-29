@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.rlfm.mifarereader.databinding.ActivityMainBinding
 import com.rlfm.mifarereader.utils.CsvExporter
 import com.rlfm.mifarereader.utils.MifareCardData
@@ -21,7 +22,7 @@ import com.rlfm.mifarereader.utils.MifareClassicReader
 import kotlinx.coroutines.launch
 
 /**
- * Main Activity for NFC Card Reading
+ * Main Activity for NFC Card Reading with card list management
  */
 class MainActivity : AppCompatActivity() {
 
@@ -34,7 +35,8 @@ class MainActivity : AppCompatActivity() {
     private val mifareReader = MifareClassicReader()
     private lateinit var csvExporter: CsvExporter
 
-    private var currentCardData: MifareCardData? = null
+    private val cardAdapter = CardAdapter()
+    private val cardList = mutableListOf<CardEntry>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +46,19 @@ class MainActivity : AppCompatActivity() {
         csvExporter = CsvExporter(this)
 
         setupNfc()
+        setupRecyclerView()
         setupUI()
+        updateUI()
+    }
+
+    /**
+     * Setup RecyclerView
+     */
+    private fun setupRecyclerView() {
+        binding.recyclerViewCards.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = cardAdapter
+        }
     }
 
     /**
@@ -87,10 +101,35 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupUI() {
         binding.btnExportCsv.setOnClickListener {
-            exportCurrentCard()
+            exportToCSV()
+        }
+
+        binding.btnClearList.setOnClickListener {
+            showClearListDialog()
         }
 
         updateNfcStatus()
+    }
+
+    /**
+     * Update UI based on current state
+     */
+    private fun updateUI() {
+        val hasCards = cardList.isNotEmpty()
+
+        // Update counter
+        binding.tvCounter.text = getString(R.string.cards_read_count, cardList.size)
+
+        // Update empty state
+        binding.emptyState.visibility = if (hasCards) View.GONE else View.VISIBLE
+        binding.recyclerViewCards.visibility = if (hasCards) View.VISIBLE else View.GONE
+
+        // Update buttons
+        binding.btnExportCsv.isEnabled = hasCards
+        binding.btnClearList.isEnabled = hasCards
+
+        // Update adapter
+        cardAdapter.submitList(cardList.toList())
     }
 
     /**
@@ -99,17 +138,17 @@ class MainActivity : AppCompatActivity() {
     private fun updateNfcStatus() {
         when {
             nfcAdapter == null -> {
-                binding.tvNfcStatus.text = getString(R.string.nfc_status)
-                binding.tvNfcMessage.text = getString(R.string.nfc_not_supported)
+                binding.tvNfcPrompt.text = getString(R.string.nfc_not_supported)
+                binding.tvNfcStatus.text = ""
             }
             !nfcAdapter!!.isEnabled -> {
-                binding.tvNfcStatus.text = getString(R.string.nfc_status)
-                binding.tvNfcMessage.text = getString(R.string.nfc_disabled)
+                binding.tvNfcPrompt.text = getString(R.string.nfc_disabled)
+                binding.tvNfcStatus.text = getString(R.string.open_nfc_settings)
                 showEnableNfcDialog()
             }
             else -> {
-                binding.tvNfcStatus.text = getString(R.string.nfc_status)
-                binding.tvNfcMessage.text = getString(R.string.waiting_for_card)
+                binding.tvNfcPrompt.text = getString(R.string.approach_mifare_card)
+                binding.tvNfcStatus.text = getString(R.string.nfc_ready)
             }
         }
     }
@@ -138,8 +177,31 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.open_nfc_settings)) { _, _ ->
                 startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
+    }
+
+    /**
+     * Show confirmation dialog before clearing list
+     */
+    private fun showClearListDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.clear_list_title))
+            .setMessage(getString(R.string.clear_list_message))
+            .setPositiveButton(getString(R.string.clear)) { _, _ ->
+                clearList()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    /**
+     * Clear the card list
+     */
+    private fun clearList() {
+        cardList.clear()
+        updateUI()
+        Toast.makeText(this, getString(R.string.clear_list), Toast.LENGTH_SHORT).show()
     }
 
     override fun onResume() {
@@ -184,15 +246,14 @@ class MainActivity : AppCompatActivity() {
      * Handle NFC tag detection
      */
     private fun handleNfcTag(tag: Tag) {
-        binding.tvNfcMessage.text = getString(R.string.reading_card)
+        binding.tvNfcStatus.text = getString(R.string.reading_card)
 
         lifecycleScope.launch {
             val result = mifareReader.readCard(tag)
 
             result.onSuccess { cardData ->
-                currentCardData = cardData
-                displayCardData(cardData)
-                binding.tvNfcMessage.text = getString(R.string.card_read_success)
+                addCardToList(cardData)
+                binding.tvNfcStatus.text = getString(R.string.card_read_success)
                 Toast.makeText(
                     this@MainActivity,
                     getString(R.string.card_read_success),
@@ -201,35 +262,44 @@ class MainActivity : AppCompatActivity() {
             }
 
             result.onFailure { error ->
-                binding.tvNfcMessage.text = getString(R.string.card_read_error_with_message, error.message ?: "Unknown error")
+                binding.tvNfcStatus.text = getString(R.string.card_read_error_with_message, error.message ?: "Unknown error")
                 Toast.makeText(
                     this@MainActivity,
                     getString(R.string.card_read_error_with_message, error.message ?: "Unknown error"),
                     Toast.LENGTH_LONG
                 ).show()
             }
+
+            // Reset status after 3 seconds
+            binding.tvNfcStatus.postDelayed({
+                binding.tvNfcStatus.text = getString(R.string.nfc_ready)
+            }, 3000)
         }
     }
 
     /**
-     * Display card data in UI
+     * Add card to the list
      */
-    private fun displayCardData(cardData: MifareCardData) {
-        binding.cardInfo.visibility = View.VISIBLE
-        binding.btnExportCsv.isEnabled = true
+    private fun addCardToList(cardData: MifareCardData) {
+        val cardEntry = CardEntry(
+            uid = cardData.uid,
+            type = cardData.type,
+            timestamp = System.currentTimeMillis()
+        )
 
-        binding.tvCardUid.text = getString(R.string.uid_label, cardData.uid)
-        binding.tvCardType.text = getString(R.string.type_label, cardData.type)
-        binding.tvCardSize.text = getString(R.string.size_label, cardData.size)
-        binding.tvCardSectors.text = getString(R.string.sectors_label, cardData.sectorCount)
-        binding.tvRawData.text = cardData.rawData
+        // Add to beginning of list
+        cardList.add(0, cardEntry)
+        updateUI()
+
+        // Scroll to top
+        binding.recyclerViewCards.smoothScrollToPosition(0)
     }
 
     /**
-     * Export current card data to CSV
+     * Export all cards to CSV
      */
-    private fun exportCurrentCard() {
-        val cardData = currentCardData ?: run {
+    private fun exportToCSV() {
+        if (cardList.isEmpty()) {
             Toast.makeText(
                 this,
                 getString(R.string.no_data_to_export),
@@ -239,7 +309,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            val result = csvExporter.exportToCSV(cardData)
+            val result = csvExporter.exportCardList(cardList)
 
             result.onSuccess { filePath ->
                 Toast.makeText(

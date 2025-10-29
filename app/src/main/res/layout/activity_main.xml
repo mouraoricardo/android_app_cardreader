@@ -4,168 +4,180 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
+    android:background="@color/background"
     tools:context=".MainActivity">
 
-    <!-- Header -->
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textAlignment="center"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@color/primary"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- NFC Status Card -->
+    <!-- Header Card with NFC Prompt -->
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardNfcStatus"
+        android:id="@+id/cardNfcPrompt"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        app:cardCornerRadius="12dp"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="16dp"
         app:cardElevation="4dp"
+        app:cardBackgroundColor="@color/primary"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTitle">
+        app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="24dp">
+
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:contentDescription="@string/nfc_icon"
+                android:src="@drawable/ic_nfc"
+                app:tint="@color/white" />
 
             <TextView
-                android:id="@+id/tvNfcStatus"
-                android:layout_width="match_parent"
+                android:id="@+id/tvNfcPrompt"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/nfc_status"
-                android:textSize="16sp"
+                android:layout_marginTop="16dp"
+                android:text="@string/approach_mifare_card"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvNfcMessage"
-                android:layout_width="match_parent"
+                android:id="@+id/tvNfcStatus"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/waiting_for_card"
+                android:text="@string/nfc_ready"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:alpha="0.9"
                 android:textSize="14sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Card Information Display -->
-    <ScrollView
-        android:id="@+id/scrollView"
+    <!-- Counter Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardCounter"
         android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@id/btnExportCsv"
+        android:layout_marginEnd="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardNfcStatus">
+        app:layout_constraintTop_toBottomOf="@id/cardNfcPrompt">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="16dp">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardInfo"
-                android:layout_width="match_parent"
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/counter_icon"
+                android:src="@drawable/ic_badge"
+                app:tint="@color/secondary" />
+
+            <TextView
+                android:id="@+id/tvCounter"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
-                tools:visibility="visible">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/card_information"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="8dp"
-                        android:background="@color/divider" />
-
-                    <TextView
-                        android:id="@+id/tvCardUid"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textSize="14sp"
-                        tools:text="UID: 04:AB:CD:EF" />
-
-                    <TextView
-                        android:id="@+id/tvCardType"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="14sp"
-                        tools:text="Type: Mifare Classic 1K" />
-
-                    <TextView
-                        android:id="@+id/tvCardSize"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="14sp"
-                        tools:text="Size: 1024 bytes" />
-
-                    <TextView
-                        android:id="@+id/tvCardSectors"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="14sp"
-                        tools:text="Sectors: 16" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/raw_data"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvRawData"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:fontFamily="monospace"
-                        android:textSize="12sp"
-                        tools:text="Sector 0 Block 0: 04 AB CD EF..." />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:layout_marginStart="12dp"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Cartões lidos: 5" />
         </LinearLayout>
-    </ScrollView>
+    </com.google.android.material.card.MaterialCardView>
 
-    <!-- Export Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnExportCsv"
+    <!-- RecyclerView for card list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewCards"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardCounter"
+        tools:listitem="@layout/item_card" />
+
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/emptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardCounter">
+
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:alpha="0.3"
+            android:contentDescription="@string/empty_list"
+            android:src="@drawable/ic_credit_card"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/no_cards_read"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Button Container -->
+    <LinearLayout
+        android:id="@+id/buttonContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/export_to_csv"
-        android:enabled="false"
-        app:icon="@android:drawable/ic_menu_save"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@color/surface"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearList"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/clear_list"
+            app:icon="@drawable/ic_delete"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnExportCsv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/export_csv"
+            app:icon="@drawable/ic_save"
+            app:iconGravity="textStart" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

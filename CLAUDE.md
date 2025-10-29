@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Build System**: Gradle with Kotlin DSL
 - **UI**: ViewBinding enabled
 
-The app reads Mifare Classic cards via NFC, displays card information (UID, type, sectors, raw data), and exports data to CSV format.
+The app reads Mifare Classic cards via NFC, maintains a list of scanned cards with timestamps, and exports the list to CSV format. Features a modern Material Design 3 interface with RecyclerView-based card list management.
 
 ## Build Commands
 
@@ -69,17 +69,26 @@ The app reads Mifare Classic cards via NFC, displays card information (UID, type
 app/
 ├── src/main/
 │   ├── java/com/rlfm/mifarereader/
-│   │   ├── MainActivity.kt              # Main activity with NFC handling
+│   │   ├── MainActivity.kt              # Main activity with NFC & list management
+│   │   ├── CardEntry.kt                 # Data class for card list items
+│   │   ├── CardAdapter.kt               # RecyclerView adapter with DiffUtil
 │   │   └── utils/
 │   │       ├── MifareClassicReader.kt   # Core NFC reading logic
 │   │       ├── NfcUtils.kt              # NFC utility functions
-│   │       └── CsvExporter.kt           # CSV export functionality
+│   │       └── CsvExporter.kt           # CSV export (single card & list)
 │   ├── res/
 │   │   ├── layout/
-│   │   │   └── activity_main.xml        # Main UI layout
+│   │   │   ├── activity_main.xml        # Main UI with RecyclerView
+│   │   │   └── item_card.xml            # RecyclerView item layout
+│   │   ├── drawable/
+│   │   │   ├── ic_nfc.xml               # NFC icon (Material Design)
+│   │   │   ├── ic_credit_card.xml       # Card icon
+│   │   │   ├── ic_badge.xml             # Counter badge icon
+│   │   │   ├── ic_save.xml              # Export icon
+│   │   │   └── ic_delete.xml            # Clear list icon
 │   │   ├── values/
 │   │   │   ├── strings.xml              # String resources (Portuguese)
-│   │   │   ├── colors.xml               # Color definitions
+│   │   │   ├── colors.xml               # Modern color palette
 │   │   │   └── themes.xml               # Material 3 theme
 │   │   └── xml/
 │   │       ├── nfc_tech_filter.xml      # NFC tech list filter
@@ -105,15 +114,24 @@ The `MifareClassicReader` class handles card authentication and data reading:
 - Gracefully handles authentication failures
 
 ### Data Model
-- `MifareCardData`: Complete card information
+- `MifareCardData`: Complete card information (from NFC read)
 - `SectorData`: Sector-level data with authentication status
 - `BlockData`: Individual block data with hex representation
+- `CardEntry`: List item with UID, type, and timestamp for RecyclerView
 
 ### CSV Export
-- Exports to `Documents/RFIDCardReader/` directory
-- Filename format: `card_[UID]_[timestamp].csv`
-- Includes card metadata, sector/block data in hex and ASCII
-- Uses OpenCSV library for CSV writing
+The app supports two export modes:
+1. **Single Card Export**: Full sector/block data
+   - Filename: `card_[UID]_[timestamp].csv`
+   - Contains complete sector and block information in hex and ASCII
+
+2. **Card List Export**: Summary of all scanned cards
+   - Filename: `card_list_[timestamp].csv`
+   - Contains: No., UID, Type, Date & Time for each card
+   - Triggered by "Exportar CSV" button
+
+All files saved to: `Documents/RFIDCardReader/` directory
+Uses OpenCSV library for CSV writing
 
 ### Security Considerations
 - NFC permission required in manifest
@@ -165,17 +183,81 @@ To add custom keys, edit `MifareClassicReader.kt:DEFAULT_KEYS`
 - Foreground dispatch ensures app receives NFC events when in foreground
 - Connection is opened/closed properly to avoid resource leaks
 
-### UI/UX
-- Material 3 Design with MaterialCardView components
-- Portuguese string resources
-- Displays real-time NFC status
-- Shows authentication failures per sector in logs
-- Export button enabled only after successful card read
+### UI/UX - Modern Interface
+The app features a modern Material Design 3 interface with:
+
+**Main Screen Layout:**
+1. **NFC Prompt Card** (top)
+   - Large NFC icon (64dp)
+   - "Aproxime o cartão Mifare" message
+   - Real-time NFC status updates
+   - Blue primary color background
+
+2. **Counter Card**
+   - Badge icon with counter
+   - "Cartões lidos: X" dynamic count
+
+3. **RecyclerView Card List**
+   - Shows all scanned cards in chronological order (newest first)
+   - Each item displays: UID (monospace), card type, timestamp
+   - Auto-scrolls to top when new card added
+   - Empty state with icon and "Nenhum cartão lido ainda" message
+
+4. **Bottom Action Buttons**
+   - "Limpar Lista" (outlined) - Clears list with confirmation dialog
+   - "Exportar CSV" (filled) - Exports entire list to CSV
+   - Both buttons disabled when list is empty
+
+**RecyclerView Implementation:**
+- Uses `CardAdapter` with `DiffUtil` for efficient updates
+- `LinearLayoutManager` for vertical scrolling
+- Item animations handled automatically
+- ViewBinding for type-safe view access
+
+**Color Scheme:**
+- Primary: Modern Blue (#2196F3)
+- Secondary: Teal Accent (#00BCD4)
+- Background: Light Gray (#F5F7FA)
+- Surface: White (#FFFFFF)
+
+**Icons:**
+- All Material Design vector drawables
+- NFC, credit card, badge, save, delete icons included
+- Consistent 24dp size with proper tinting
+
+**Portuguese Localization:**
+- All strings in Portuguese (Portugal)
+- Proper plurals and formatting
+- Confirmation dialogs with clear messaging
 
 ### File Locations
 - CSV exports: `/storage/emulated/0/Android/data/com.rlfm.mifarereader/files/Documents/RFIDCardReader/`
 - On Android 10+, files are scoped to app directory (no permission needed)
 - On Android 9-, uses legacy external storage (requires WRITE_EXTERNAL_STORAGE)
+
+## Key Features
+
+### Card List Management
+- **Persistent Session List**: Cards remain in list until cleared
+- **No Duplicates Filtering**: Each scan adds a new entry (allows tracking multiple reads of same card)
+- **Chronological Order**: Newest cards appear at top
+- **Counter**: Real-time count of scanned cards
+- **Clear All**: Button to clear entire list with confirmation dialog
+
+### User Workflow
+1. App opens → Shows NFC prompt and empty list
+2. User taps card → Card reads and appears at top of list
+3. Counter updates automatically
+4. Repeat for multiple cards
+5. Export entire list to CSV when ready
+6. Clear list to start fresh session
+
+### Data Flow
+```
+NFC Tag → MifareClassicReader → MifareCardData → CardEntry → RecyclerView
+                                                              ↓
+                                                    CsvExporter (list export)
+```
 
 ## License
 

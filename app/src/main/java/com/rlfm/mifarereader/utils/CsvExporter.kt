@@ -3,6 +3,7 @@ package com.rlfm.mifarereader.utils
 import android.content.Context
 import android.os.Environment
 import com.opencsv.CSVWriter
+import com.rlfm.mifarereader.CardEntry
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -107,5 +108,58 @@ class CsvExporter(private val context: Context) {
      */
     private fun getCurrentTimestamp(): String {
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+    }
+
+    /**
+     * Export list of card entries to CSV file
+     */
+    fun exportCardList(cardList: List<CardEntry>): Result<String> {
+        try {
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "card_list_$timestamp.csv"
+
+            // Try to use external storage first (for API < 29)
+            val externalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            val directory = if (externalDir != null) {
+                File(externalDir, CSV_DIRECTORY)
+            } else {
+                // Fallback to internal storage
+                File(context.filesDir, CSV_DIRECTORY)
+            }
+
+            if (!directory.exists()) {
+                directory.mkdirs()
+            }
+
+            val file = File(directory, fileName)
+
+            CSVWriter(FileWriter(file)).use { writer ->
+                // Write header
+                writer.writeNext(arrayOf("RFID Card Reader - Card List Export"))
+                writer.writeNext(arrayOf("Total Cards", cardList.size.toString()))
+                writer.writeNext(arrayOf("Exported at", getCurrentTimestamp()))
+                writer.writeNext(arrayOf(""))
+
+                // Write card data header
+                writer.writeNext(arrayOf("No.", "UID", "Type", "Date & Time"))
+
+                // Write all cards
+                cardList.forEachIndexed { index, card ->
+                    writer.writeNext(
+                        arrayOf(
+                            (index + 1).toString(),
+                            card.uid,
+                            card.type,
+                            card.getFormattedDate()
+                        )
+                    )
+                }
+            }
+
+            return Result.success(file.absolutePath)
+
+        } catch (e: Exception) {
+            return Result.failure(e)
+        }
     }
 }
