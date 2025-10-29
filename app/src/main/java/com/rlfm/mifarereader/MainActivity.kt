@@ -356,15 +356,22 @@ class MainActivity : AppCompatActivity() {
             val cardList = cardRepository.getAllCardsList()
             val result = csvExporter.exportCardList(cardList)
 
-            result.onSuccess { filePath ->
+            result.onSuccess { exportResult ->
+                // Show success snackbar with share action
                 Snackbar.make(
                     binding.root,
                     getString(R.string.export_success_short),
                     Snackbar.LENGTH_LONG
-                ).setAction(getString(R.string.details)) {
-                    showExportDetailsDialog(filePath)
+                ).setAction(getString(R.string.share)) {
+                    // Show share dialog immediately
+                    shareExportedFile(exportResult)
                 }.setAnchorView(binding.buttonContainer)
                     .show()
+
+                // Automatically show share dialog after a short delay
+                binding.root.postDelayed({
+                    shareExportedFile(exportResult)
+                }, 500)
             }
 
             result.onFailure { error ->
@@ -379,13 +386,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Show export details dialog
+     * Share the exported CSV file using Android's share dialog
      */
-    private fun showExportDetailsDialog(filePath: String) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.export_to_csv))
-            .setMessage(getString(R.string.export_success, filePath))
-            .setPositiveButton("OK", null)
-            .show()
+    private fun shareExportedFile(exportResult: com.rlfm.mifarereader.utils.CsvExportResult) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+
+            // Add URI with proper flags
+            exportResult.fileUri?.let { uri ->
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            // Add subject and text for email apps
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject))
+            putExtra(Intent.EXTRA_TEXT, getString(R.string.share_text, exportResult.fileName))
+        }
+
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_title)))
+        } catch (e: Exception) {
+            Snackbar.make(
+                binding.root,
+                getString(R.string.share_error),
+                Snackbar.LENGTH_SHORT
+            ).setAnchorView(binding.buttonContainer)
+                .show()
+        }
     }
+
 }

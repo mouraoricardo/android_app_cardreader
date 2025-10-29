@@ -245,11 +245,39 @@ UID,Data/Hora
 0C:C5:D4:E3:F2:A1:B8,29/01/2025 14:32:08
 ```
 
+**File Sharing:**
+After export, the app automatically shows Android's share dialog allowing users to:
+- **Email**: Send CSV as attachment via Gmail, Outlook, etc.
+- **Messaging**: Share via WhatsApp, Telegram, Signal, etc.
+- **Bluetooth**: Transfer to nearby devices
+- **Cloud Storage**: Upload to Google Drive, Dropbox, OneDrive
+- **Other Apps**: Any app that accepts CSV/text files
+
+**Share Implementation:**
+- Uses `FileProvider` for secure file sharing
+- Android 10+: Shares MediaStore URI directly (no FileProvider needed)
+- Android 9-: Uses FileProvider to create shareable URI
+- Share intent includes:
+  - `EXTRA_STREAM`: File URI
+  - `EXTRA_SUBJECT`: "Exportação de Cartões RFID"
+  - `EXTRA_TEXT`: Filename for context
+  - `FLAG_GRANT_READ_URI_PERMISSION`: Temporary read access
+- Shows share dialog automatically after export (500ms delay)
+- Snackbar with "Partilhar" action button for manual sharing
+
+**FileProvider Configuration:**
+- Authority: `com.rlfm.mifarereader.fileprovider`
+- Paths configured in `res/xml/file_paths.xml`:
+  - `external_downloads`: Public Downloads folder
+  - `external_files`: App external files directory
+  - `cache`: Cache directory for temporary files
+
 **Technical Details:**
 - Uses OpenCSV library for CSV writing
 - UTF-8 encoding for international characters
 - Proper CSV escaping for special characters
 - Excel-compatible format (RFC 4180 compliant)
+- Secure file sharing via FileProvider (prevents file:// URI vulnerabilities)
 
 ### Security Considerations
 - **NFC permission** required in manifest

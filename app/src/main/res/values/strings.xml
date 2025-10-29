@@ -67,4 +67,11 @@
     <string name="export_success_short">CSV exportado com sucesso</string>
     <string name="view">Ver</string>
     <string name="details">Detalhes</string>
+
+    <!-- Share Functionality -->
+    <string name="share">Partilhar</string>
+    <string name="share_title">Partilhar CSV</string>
+    <string name="share_subject">Exportação de Cartões RFID</string>
+    <string name="share_text">Exportação de cartões RFID: %s</string>
+    <string name="share_error">Erro ao partilhar ficheiro</string>
 </resources>

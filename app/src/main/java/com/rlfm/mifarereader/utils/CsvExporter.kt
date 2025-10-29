@@ -2,9 +2,11 @@ package com.rlfm.mifarereader.utils
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import com.opencsv.CSVWriter
 import com.rlfm.mifarereader.CardEntry
 import java.io.File
@@ -13,6 +15,15 @@ import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.*
+
+/**
+ * Result of CSV export containing file path and URI for sharing
+ */
+data class CsvExportResult(
+    val filePath: String,
+    val fileUri: Uri?,
+    val fileName: String
+)
 
 /**
  * Utility class for exporting card data to CSV
@@ -122,8 +133,9 @@ class CsvExporter(private val context: Context) {
      * Format: UID, Data/Hora
      * For Android 10+ (API 29+): Uses MediaStore API
      * For Android 9- (API < 29): Uses legacy external storage
+     * @return Result with CsvExportResult containing file path, URI for sharing, and filename
      */
-    fun exportCardList(cardList: List<CardEntry>): Result<String> {
+    fun exportCardList(cardList: List<CardEntry>): Result<CsvExportResult> {
         try {
             if (cardList.isEmpty()) {
                 return Result.failure(IllegalArgumentException("Lista de cartões vazia"))
@@ -147,8 +159,9 @@ class CsvExporter(private val context: Context) {
 
     /**
      * Export using MediaStore API (Android 10+)
+     * Returns URI from MediaStore which can be used for sharing
      */
-    private fun exportUsingMediaStore(fileName: String, cardList: List<CardEntry>): Result<String> {
+    private fun exportUsingMediaStore(fileName: String, cardList: List<CardEntry>): Result<CsvExportResult> {
         try {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -168,7 +181,14 @@ class CsvExporter(private val context: Context) {
             val downloadsPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
             val displayPath = "$downloadsPath/$fileName"
 
-            return Result.success(displayPath)
+            // Return result with MediaStore URI for sharing
+            val result = CsvExportResult(
+                filePath = displayPath,
+                fileUri = uri,
+                fileName = fileName
+            )
+
+            return Result.success(result)
 
         } catch (e: Exception) {
             return Result.failure(Exception("Erro ao exportar com MediaStore: ${e.message}", e))
@@ -177,8 +197,9 @@ class CsvExporter(private val context: Context) {
 
     /**
      * Export using legacy external storage (Android 9-)
+     * Uses FileProvider to get shareable URI
      */
-    private fun exportUsingLegacyStorage(fileName: String, cardList: List<CardEntry>): Result<String> {
+    private fun exportUsingLegacyStorage(fileName: String, cardList: List<CardEntry>): Result<CsvExportResult> {
         try {
             @Suppress("DEPRECATION")
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -192,7 +213,24 @@ class CsvExporter(private val context: Context) {
                 writeCardListToCsv(outputStream, cardList)
             }
 
-            return Result.success(file.absolutePath)
+            // Get FileProvider URI for sharing
+            val fileUri = try {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            } catch (e: Exception) {
+                null // If FileProvider fails, we'll still have the file path
+            }
+
+            val result = CsvExportResult(
+                filePath = file.absolutePath,
+                fileUri = fileUri,
+                fileName = fileName
+            )
+
+            return Result.success(result)
 
         } catch (e: Exception) {
             return Result.failure(Exception("Erro ao exportar ficheiro: ${e.message}", e))
