@@ -108,7 +108,40 @@ class MainActivity : AppCompatActivity() {
             showClearListDialog()
         }
 
+        // Setup SwipeRefreshLayout
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            // Refresh is just visual feedback - data comes from database automatically
+            binding.swipeRefreshLayout.postDelayed({
+                binding.swipeRefreshLayout.isRefreshing = false
+            }, 800)
+        }
+
+        // Set refresh colors to match theme
+        binding.swipeRefreshLayout.setColorSchemeResources(
+            R.color.primary,
+            R.color.secondary,
+            R.color.primary_light
+        )
+
         updateNfcStatus()
+        startNfcAnimation()
+    }
+
+    /**
+     * Start NFC icon animation when waiting for cards
+     */
+    private fun startNfcAnimation() {
+        if (nfcReader.isNfcEnabled()) {
+            val animation = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse)
+            binding.ivNfcIcon.startAnimation(animation)
+        }
+    }
+
+    /**
+     * Stop NFC icon animation
+     */
+    private fun stopNfcAnimation() {
+        binding.ivNfcIcon.clearAnimation()
     }
 
     /**
@@ -268,11 +301,13 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updateNfcStatus()
         nfcReader.enableForegroundDispatch()
+        startNfcAnimation()
     }
 
     override fun onPause() {
         super.onPause()
         nfcReader.disableForegroundDispatch()
+        stopNfcAnimation()
     }
 
     override fun onNewIntent(intent: Intent) {

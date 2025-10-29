@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors (Dark Mode) -->
+    <color name="primary">#FF2196F3</color>
+    <color name="primary_dark">#FF1976D2</color>
+    <color name="primary_light">#FF64B5F6</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#FF00BCD4</color>
+    <color name="secondary_dark">#FF0097A7</color>
+    <color name="secondary_light">#FF4DD0E1</color>
+
+    <!-- Background Colors (Dark) -->
+    <color name="background">#FF121212</color>
+    <color name="surface">#FF1E1E1E</color>
+    <color name="surface_variant">#FF2C2C2C</color>
+
+    <!-- Text Colors (Dark Mode) -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_hint">#80FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="success">#FF4CAF50</color>
+    <color name="error">#FFF44336</color>
+    <color name="warning">#FFFF9800</color>
+    <color name="info">#FF2196F3</color>
+
+    <!-- Common Colors -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Divider -->
+    <color name="divider">#1FFFFFFF</color>
+</resources>

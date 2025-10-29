@@ -395,8 +395,9 @@ The app features a modern Material Design 3 interface with:
 **RecyclerView Implementation:**
 - Uses `CardAdapter` with `DiffUtil` for efficient updates
 - `LinearLayoutManager` for vertical scrolling
-- Item animations handled automatically
+- **Smooth slide-in animations** when adding new cards
 - ViewBinding for type-safe view access
+- Wrapped in `SwipeRefreshLayout` for pull-to-refresh gesture
 
 **Color Scheme:**
 - Primary: Modern Blue (#2196F3)
@@ -426,6 +427,41 @@ The app features a modern Material Design 3 interface with:
 **Haptic Feedback:**
 - Short vibration (200ms) on successful card read
 - Provides tactile confirmation without visual distraction
+
+**Animations & UX Enhancements:**
+
+1. **RecyclerView Item Animations**
+   - Smooth slide-in-right animation (300ms) when cards are added
+   - Fade-in effect combined with translation
+   - Animation defined in `res/anim/slide_in_right.xml`
+   - Prevents re-animation on scroll with `lastPosition` tracking
+
+2. **NFC Icon Pulse Animation**
+   - Continuous pulse animation on NFC icon when waiting for cards
+   - Scale + alpha animation (800ms cycle)
+   - Indicates app is ready and actively listening
+   - Animation stops when app goes to background
+   - Restarts automatically on resume
+   - Defined in `res/anim/pulse.xml`
+
+3. **SwipeRefreshLayout**
+   - Pull-to-refresh gesture for visual feedback
+   - Uses theme colors (primary, secondary, primary_light)
+   - 800ms refresh duration
+   - Data updates automatically from database via Flow
+   - Provides tactile feedback that app is responsive
+
+4. **Confirmation Dialogs**
+   - Clear list: Shows confirmation before deleting all cards
+   - NFC disabled: Offers direct link to NFC settings
+   - NFC not supported: Clear message with app exit option
+
+5. **Dark Mode Support**
+   - Automatic dark theme based on system settings
+   - Custom colors for dark mode in `values-night/colors.xml`
+   - Dark background (#121212) with elevated surfaces (#1E1E1E)
+   - High contrast text colors for readability
+   - Theme switches automatically when system dark mode changes
 
 ### File Locations
 

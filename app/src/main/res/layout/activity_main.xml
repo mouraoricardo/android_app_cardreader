@@ -28,6 +28,7 @@
             android:padding="24dp">
 
             <ImageView
+                android:id="@+id/ivNfcIcon"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:contentDescription="@string/nfc_icon"
@@ -98,21 +99,27 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- RecyclerView for card list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewCards"
+    <!-- SwipeRefreshLayout wrapping RecyclerView -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        android:clipToPadding="false"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="8dp"
         app:layout_constraintBottom_toTopOf="@id/buttonContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardCounter"
-        tools:listitem="@layout/item_card" />
+        app:layout_constraintTop_toBottomOf="@id/cardCounter">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewCards"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            tools:listitem="@layout/item_card" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Empty state -->
     <LinearLayout
