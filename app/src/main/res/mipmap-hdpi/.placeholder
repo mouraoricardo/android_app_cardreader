@@ -1,0 +1,7 @@
+# Placeholder for launcher icons
+# Use Android Studio Image Asset tool to generate proper icons:
+# Right-click res folder → New → Image Asset
+#
+# Required files:
+# - ic_launcher.png
+# - ic_launcher_round.png (if supporting round icons)

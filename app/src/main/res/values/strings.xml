@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RFID Card Reader</string>
+
+    <!-- NFC Status Messages -->
+    <string name="nfc_status">Estado NFC</string>
+    <string name="waiting_for_card">Aproxime um cartão RFID/NFC para ler…</string>
+    <string name="nfc_not_supported">Este dispositivo não suporta NFC</string>
+    <string name="nfc_disabled">NFC está desativado. Por favor, ative-o nas configurações.</string>
+    <string name="reading_card">A ler cartão…</string>
+    <string name="card_read_success">Cartão lido com sucesso!</string>
+    <string name="card_read_error">Erro ao ler cartão</string>
+    <string name="authentication_failed">Falha na autenticação do sector</string>
+
+    <!-- Card Information -->
+    <string name="card_information">Informação do Cartão</string>
+    <string name="raw_data">Dados Brutos</string>
+    <string name="uid_label">UID: %s</string>
+    <string name="type_label">Tipo: %s</string>
+    <string name="size_label">Tamanho: %d bytes</string>
+    <string name="sectors_label">Sectores: %d</string>
+
+    <!-- Card Types -->
+    <string name="mifare_classic_1k">Mifare Classic 1K</string>
+    <string name="mifare_classic_4k">Mifare Classic 4K</string>
+    <string name="mifare_ultralight">Mifare Ultralight</string>
+    <string name="unknown_card_type">Tipo Desconhecido</string>
+
+    <!-- Export -->
+    <string name="export_to_csv">Exportar para CSV</string>
+    <string name="export_success">Dados exportados para: %s</string>
+    <string name="export_error">Erro ao exportar dados</string>
+    <string name="no_data_to_export">Não há dados para exportar</string>
+
+    <!-- Permissions -->
+    <string name="storage_permission_required">Permissão de armazenamento necessária para exportar dados</string>
+
+    <!-- Settings -->
+    <string name="open_nfc_settings">Abrir Configurações NFC</string>
+</resources>
