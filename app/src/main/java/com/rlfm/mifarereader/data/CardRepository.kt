@@ -33,17 +33,18 @@ class CardRepository(context: Context) {
     }
 
     /**
-     * Insert a new card with UID and type
-     * Creates a CardEntry with current timestamp and auto-generated ID
+     * Insert a new card with UID, type and timestamp
+     * Creates a CardEntry with the provided timestamp and auto-generated ID
      * @param uid The card UID
      * @param type The card type
+     * @param timestamp The timestamp when the card was detected (from NFC event)
      * @return The row ID of the inserted card
      */
-    suspend fun insertCard(uid: String, type: String): Long {
+    suspend fun insertCard(uid: String, type: String, timestamp: Long): Long {
         val card = CardEntry(
             uid = uid,
             type = type,
-            timestamp = System.currentTimeMillis()
+            timestamp = timestamp
         )
         return cardDao.insertCard(card)
     }

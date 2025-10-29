@@ -127,9 +127,9 @@ class MainActivity : AppCompatActivity() {
      * Handle card detection from NFC reader
      */
     private fun onCardDetected(uid: String, type: String, timestamp: Long) {
-        // Insert card into database
+        // Insert card into database with the exact timestamp from NFC event
         lifecycleScope.launch {
-            cardRepository.insertCard(uid, type)
+            cardRepository.insertCard(uid, type, timestamp)
         }
 
         // Update status
