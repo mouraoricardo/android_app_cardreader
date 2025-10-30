@@ -25,11 +25,21 @@ data class CardEntry(
     @ColumnInfo(name = "timestamp")
     val timestamp: Long = System.currentTimeMillis()
 ) {
+    /**
+     * Get formatted time string (HH:mm:ss)
+     * Used for displaying time in the card list RecyclerView
+     * @return Time string in 24-hour format (e.g., "14:35:22")
+     */
     fun getFormattedTime(): String {
         val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         return formatter.format(Date(timestamp))
     }
 
+    /**
+     * Get formatted date and time string (dd/MM/yyyy HH:mm:ss)
+     * Used for CSV export with full date and time information
+     * @return Date and time string (e.g., "30/10/2025 14:35:22")
+     */
     fun getFormattedDate(): String {
         val formatter = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
         return formatter.format(Date(timestamp))
