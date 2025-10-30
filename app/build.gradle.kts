@@ -36,6 +36,28 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    lint {
+        // Ensure lint errors don't block release builds for non-critical issues
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
+
+    packaging {
+        resources {
+            // Exclude duplicate files that may come from dependencies
+            excludes += listOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/license.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/notice.txt",
+                "META-INF/ASL2.0"
+            )
+        }
+    }
 }
 
 kotlin {
@@ -69,8 +91,10 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    // CSV handling
-    implementation("com.opencsv:opencsv:5.9")
+    // CSV handling - exclude commons-logging to avoid conflicts with Android platform
+    implementation("com.opencsv:opencsv:5.9") {
+        exclude(group = "commons-logging", module = "commons-logging")
+    }
 
     // Testing
     testImplementation("junit:junit:4.13.2")
